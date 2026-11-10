@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DealSeal</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="desk" data-i18n-aria="region.brief" aria-label="Your deal">
+        <header class="masthead">
+          <svg class="logo" viewBox="0 0 64 64" aria-hidden="true">
+            <rect width="64" height="64" rx="14" fill="#142824"/>
+            <path d="M17 10h22l9 9v35H17z" fill="#f8faf7"/>
+            <path d="M23 22h14M23 29h18M23 36h10" stroke="#9fb3ab" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="42" cy="45" r="10" fill="#b03a2e"/>
+            <path d="M37.5 45.2l3.2 3.2 6-6.4" fill="none" stroke="#f8faf7" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <h1>DealSeal</h1>
+          <div class="masthead-tools">
+            <label class="lang-pick">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M1.8 8h12.4M8 1.8c1.8 1.8 2.6 3.8 2.6 6.2S9.8 12.4 8 14.2C6.2 12.4 5.4 10.4 5.4 8S6.2 3.6 8 1.8z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
+              <span class="sr-only" data-i18n="uiLang.label">App language</span>
+              <select id="ui-lang"></select>
+            </label>
+            <button type="button" id="theme" class="theme-btn"></button>
+            <span id="conn" class="conn"></span>
+          </div>
+        </header>
+
+        <form id="brief" autocomplete="off">
+          <div class="profile-card">
+            <div class="profile-text">
+              <span class="profile-label" data-i18n="profile.label">Your details</span>
+              <span id="profile-summary" class="profile-summary"></span>
+            </div>
+            <button type="button" class="link" id="edit-profile" data-i18n="profile.edit">Edit</button>
+          </div>
+
+          <fieldset class="field group">
+            <legend data-i18n="client.legend">Client</legend>
+            <div class="two">
+              <div class="field">
+                <label for="client-name" data-i18n="client.name">Client name</label>
+                <input id="client-name" required maxlength="120" data-i18n-ph="client.namePh" />
+              </div>
+              <div class="field">
+                <label for="client-country" data-i18n="client.country">Client country (optional)</label>
+                <input id="client-country" maxlength="60" data-i18n-ph="client.countryPh" />
+              </div>
+            </div>
+          </fieldset>
+
+          <div class="field">
+            <label for="scope" data-i18n="scope.label">What will you deliver?</label>
+            <textarea id="scope" rows="5" required maxlength="3000" data-i18n-ph="scope.ph"></textarea>
+          </div>
+
+          <div class="price-row">
+            <div class="field">
+              <label for="price" id="price-label" data-i18n="price.label">Price</label>
+              <input id="price" type="number" min="0" step="any" inputmode="decimal" />
+            </div>
+            <div class="field">
+              <label for="currency" data-i18n="currency.label">Currency</label>
+              <select id="currency"></select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="model" data-i18n="model.label">Payment</label>
+            <select id="model">
+              <option value="fixed" data-i18n="model.fixed">Fixed price</option>
+              <option value="milestones" data-i18n="model.milestones">In milestones</option>
+              <option value="hourly" data-i18n="model.hourly">Hourly rate</option>
+            </select>
+          </div>
+
+          <div class="field" id="milestones-field" hidden>
+            <label for="milestones" data-i18n="milestones.label">Milestones (optional)</label>
+            <textarea id="milestones" rows="3" maxlength="800" data-i18n-ph="milestones.ph"></textarea>
+          </div>
+
+          <div class="two">
+            <div class="field">
+              <label for="deposit" data-i18n="deposit.label">Upfront payment (%)</label>
+              <input id="deposit" type="number" min="0" max="100" step="5" value="30" />
+            </div>
+            <div class="field">
+              <label for="revisions" data-i18n="revisions.label">Revision rounds</label>
+              <input id="revisions" type="number" min="0" max="20" step="1" value="2" />
+            </div>
+          </div>
+
+          <div class="two">
+            <div class="field">
+              <label for="start" data-i18n="start.label">Start</label>
+              <input id="start" type="date" />
+            </div>
+            <div class="field">
+              <label for="deadline" data-i18n="deadline.label">Deadline</label>
+              <input id="deadline" type="date" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="ip" data-i18n="ip.label">Who owns the work?</label>
+            <select id="ip">
+              <option value="afterPayment" data-i18n="ip.afterPayment">Client, after full payment</option>
+              <option value="onDelivery" data-i18n="ip.onDelivery">Client, on delivery</option>
+              <option value="license" data-i18n="ip.license">I keep it, client gets a licence</option>
+            </select>
+          </div>
+
+          <div class="two">
+            <div class="field">
+              <label for="doc-lang" data-i18n="docLang.label">Contract language</label>
+              <select id="doc-lang"></select>
+            </div>
+            <div class="field">
+              <label for="tone" data-i18n="tone.label">Tone</label>
+              <select id="tone">
+                <option value="balanced" data-i18n="tone.balanced">Balanced</option>
+                <option value="protective" data-i18n="tone.protective">Protect me more</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="submit" class="primary" id="go" data-i18n="go">Draft contract</button>
+          <p id="status" class="status" role="status" aria-live="polite"></p>
+        </form>
+      </aside>
+
+      <main class="room" data-i18n-aria="region.doc" aria-label="Contract">
+        <div class="doc-bar" id="doc-bar" hidden>
+          <nav class="tabs" id="tabs" role="tablist">
+            <button type="button" class="tab" role="tab" data-view="contract" data-i18n="tab.contract">Contract</button>
+            <button type="button" class="tab" role="tab" data-view="email" data-i18n="tab.email">Email to client</button>
+            <button type="button" class="tab" role="tab" data-view="summary" data-i18n="tab.summary">Plain summary</button>
+          </nav>
+          <button type="button" class="copy-btn" id="copy-btn"></button>
+        </div>
+
+        <div class="doc-grid">
+          <section class="check" id="check" hidden data-i18n-aria="check.title" aria-label="Check before sending">
+            <h2 data-i18n="check.title">Check before sending</h2>
+            <ul id="flags"></ul>
+          </section>
+
+          <div class="doc-col">
+            <div class="empty" id="empty">
+              <div class="empty-sheet" aria-hidden="true">
+                <span></span><span></span><span></span><span></span><span></span>
+              </div>
+              <p class="empty-title" data-i18n="empty.title">Your contract will appear here.</p>
+              <p data-i18n="empty.body">Fill in the client and the job on the left.</p>
+            </div>
+
+            <article class="sheet" id="sheet" data-view="contract" hidden>
+              <svg class="seal" id="seal" viewBox="0 0 100 100" aria-hidden="true">
+                <path d="M50 4l7 6 9-3 4 8 9 1 1 9 8 4-3 9 6 7-6 7 3 9-8 4-1 9-9 1-4 8-9-3-7 6-7-6-9 3-4-8-9-1-1-9-8-4 3-9-6-7 6-7-3-9 8-4 1-9 9-1 4-8 9 3z" fill="var(--seal)"/>
+                <circle cx="50" cy="50" r="30" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="2"/>
+                <path d="M37 51l9 9 18-19" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <h2 class="doc-title" id="doc-title" contenteditable="plaintext-only" spellcheck="false"></h2>
+              <p class="doc-meta" id="doc-meta"></p>
+              <p class="edit-hint" data-i18n="sec.editHint">Click any text to edit it.</p>
+              <div id="sections"></div>
+              <div class="signatures" id="signatures"></div>
+            </article>
+
+            <article class="sheet" id="email-view" data-view="email" hidden>
+              <p class="email-label" data-i18n="email.subject">Subject</p>
+              <div class="email-subject" id="email-subject" contenteditable="plaintext-only"></div>
+              <div class="email-body" id="email-body" contenteditable="plaintext-only"></div>
+            </article>
+
+            <article class="sheet" id="summary-view" data-view="summary" hidden>
+              <ul class="summary" id="summary"></ul>
+            </article>
+
+            <p class="disclaimer" data-i18n="disclaimer">DealSeal drafts contracts, it is not a lawyer.</p>
+          </div>
+        </div>
+
+        <section class="history" data-i18n-aria="history.title" aria-label="Recent">
+          <h2 data-i18n="history.title">Recent</h2>
+          <ul id="history"></ul>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="profile-dialog">
+      <form method="dialog" id="profile-form">
+        <h2 data-i18n="p.title">Your details</h2>
+        <p class="hint" data-i18n="p.hint">Saved to your account and used in every contract.</p>
+        <div class="field"><label for="p-name" data-i18n="p.name">Your name or business</label><input id="p-name" maxlength="100" data-i18n-ph="p.namePh" /></div>
+        <div class="field"><label for="p-role" data-i18n="p.role">What you do</label><input id="p-role" maxlength="80" data-i18n-ph="p.rolePh" /></div>
+        <div class="field"><label for="p-country" data-i18n="p.country">Your country</label><input id="p-country" maxlength="60" data-i18n-ph="p.countryPh" /></div>
+        <div class="field"><label for="p-email" data-i18n="p.email">Email (optional)</label><input id="p-email" type="email" maxlength="120" /></div>
+        <div class="two">
+          <div class="field"><label for="p-due" data-i18n="p.dueDays">Invoices due within (days)</label><input id="p-due" type="number" min="0" max="120" value="14" /></div>
+          <div class="field"><label for="p-late" data-i18n="p.lateFee">Late fee per month (%, optional)</label><input id="p-late" type="number" min="0" max="20" step="0.5" /></div>
+        </div>
+        <div class="dialog-actions">
+          <span class="spacer"></span>
+          <button type="button" class="ghost" id="p-cancel" data-i18n="b.cancel">Cancel</button>
+          <button type="submit" class="primary small" id="p-save" data-i18n="b.save">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>

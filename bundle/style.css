@@ -202,9 +202,11 @@ input::placeholder, textarea::placeholder { color: var(--ink-2); opacity: 0.6; }
 }
 /* Wide windows: the check sits beside the contract. */
 @media (min-width: 1240px) {
-  .doc-grid { grid-template-columns: minmax(0, 1fr) 280px; align-items: start; }
-  .check { grid-column: 2; grid-row: 1; position: sticky; top: 0; }
-  .doc-col { grid-column: 1; grid-row: 1; }
+  .doc-grid { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; }
+  .doc-col { grid-column: 1; grid-row: 1 / span 3; }
+  .check { grid-column: 2; grid-row: 1; }
+  .assistant { grid-column: 2; grid-row: 2; position: sticky; top: 0; }
+  .chat-log { max-height: 42vh; }
 }
 
 .empty { text-align: center; color: var(--ink-2); max-width: 46ch; margin: 56px auto; }
@@ -327,6 +329,64 @@ input::placeholder, textarea::placeholder { color: var(--ink-2); opacity: 0.6; }
 .flag.done { opacity: 0.6; }
 .flag.done .flag-level { color: var(--ink-2); }
 .check-none { font-size: 13.5px; color: var(--ink-2); padding: 0 0 10px; }
+
+/* ---------- the assistant: revise by chatting ---------- */
+
+.assistant {
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--desk);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 14px 12px;
+  z-index: 2;
+}
+/* Narrower windows: the assistant docks to the bottom edge while you read. */
+@media (max-width: 1239px) {
+  .assistant { position: sticky; bottom: 0; box-shadow: 0 -10px 24px -18px rgba(20, 40, 36, 0.45); }
+  .chat-log { max-height: 26vh; }
+}
+.assistant-head h2 { font-size: 15px; margin: 0; }
+.assistant-hint { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-2); line-height: 1.4; }
+
+.chat-log {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 8px;
+  overflow-y: auto;
+}
+.chat-log:empty { display: none; }
+.msg {
+  max-width: 92%;
+  padding: 8px 11px;
+  border-radius: 12px;
+  font-size: 13.5px; line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.msg p { margin: 0; white-space: pre-wrap; }
+.msg.user { align-self: flex-end; background: var(--ink); color: var(--desk); border-bottom-right-radius: 4px; }
+.msg.ai { align-self: flex-start; background: var(--sheet); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+.msg.ai.error { border-color: var(--high); color: var(--high); }
+.msg.working { color: var(--ink-2); font-style: italic; }
+.msg-changes { margin: 6px 0 0; padding-left: 1.1em; font-size: 12.5px; color: var(--ink-2); }
+.msg-changes li { margin: 2px 0; }
+.msg-changes .numbers { color: var(--medium); font-weight: 600; }
+.msg .mini { margin-top: 6px; }
+
+.suggestions { display: flex; flex-wrap: wrap; gap: 6px; }
+.sugg {
+  border: 1px solid var(--line); background: var(--sheet);
+  border-radius: 999px; padding: 4px 10px;
+  font-size: 12.5px; color: var(--ink-2); cursor: pointer; text-align: left;
+}
+.sugg:hover { color: var(--ink); border-color: var(--ink-2); }
+
+.chat-form { display: flex; gap: 8px; align-items: flex-end; }
+.chat-form textarea { flex: 1; resize: none; min-height: 42px; max-height: 140px; font-size: 14px; }
+.send {
+  flex: none; border: 0; border-radius: 8px; padding: 10px 14px;
+  background: var(--seal); color: var(--seal-ink); font-weight: 650; cursor: pointer;
+}
+.send.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+.section.changed { box-shadow: -10px 0 0 -6px var(--seal); }
 
 /* ---------- history ---------- */
 

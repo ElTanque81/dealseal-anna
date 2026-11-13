@@ -1,15 +1,15 @@
 {
   "slug": "dealseal",
   "name": "DealSeal",
-  "version": "0.1.0",
-  "tagline": "Freelance contracts, client emails and a risk check, drafted in minutes.",
-  "description": "DealSeal drafts clear freelance contracts in plain language. Describe the client and the job, set the price, deposit, revisions and dates, and get a complete contract, a ready-to-send email to your client and a short check of what could cost you money.\n\n**What it does**\n\n- Complete contract in sections: parties, scope, timeline, payment, revisions, ownership, confidentiality, termination, liability and governing law, with signature lines.\n- Never invents names, amounts or dates: anything missing becomes a clear placeholder like [CLIENT ADDRESS].\n- Edit any text directly, or rewrite a section to be simpler or to protect you more. Amounts and dates are checked so a rewrite can't change them.\n- Check before sending: flags no deposit, vague scope, too many revision rounds, wrong dates and more, with one click to fix it in the contract.\n- Cover email and a plain-language summary for your client.\n- Copy with formatting into Word or Google Docs.\n- App in English, German, Chinese, Russian and Hindi; contracts in 14 languages.\n\n**Who it's for**\n\nFreelance designers, developers, writers, photographers and consultants who need a solid contract before they start work.\n\nDealSeal drafts contracts, it is not a lawyer. Check important contracts under your local law before signing.",
+  "version": "0.2.0",
+  "tagline": "Freelance contracts you can revise by chatting, plus a client email and a risk check.",
+  "description": "DealSeal drafts clear freelance contracts in plain language. Describe the client and the job, set the price, deposit, revisions and dates, and get a complete contract, a ready-to-send email to your client and a short check of what could cost you money.\n\n**What it does**\n\n- Complete contract in sections: parties, scope, timeline, payment, revisions, ownership, confidentiality, termination, liability and governing law, with signature lines.\n- Never invents names, amounts or dates: anything missing becomes a clear placeholder like [CLIENT ADDRESS].\n- Revise it by chatting: ask for any change in your own words (\"add travel costs\", \"make the deposit 50%\", \"shorten the whole thing\"). DealSeal edits, adds or removes sections, renumbers, highlights what changed, flags changed amounts and dates, and lets you undo.\n- Or edit any text directly, and rewrite a single section to be simpler or to protect you more.\n- Check before sending: flags no deposit, vague scope, too many revision rounds, wrong dates and more, with one click to fix it in the contract.\n- Cover email and a plain-language summary for your client.\n- Copy with formatting into Word or Google Docs.\n- App in English, German, Chinese, Russian and Hindi; contracts in 14 languages.\n\n**Who it's for**\n\nFreelance designers, developers, writers, photographers and consultants who need a solid contract before they start work.\n\nDealSeal drafts contracts, it is not a lawyer. Check important contracts under your local law before signing.",
   "category": "productivity",
   "logo_file": "docs/logo-512.png",
   "screenshots": [
     "docs/screenshots/1-contract.png",
-    "docs/screenshots/2-deutsch-dark.png",
-    "docs/screenshots/3-check-fix.png",
-    "docs/screenshots/4-client-email.png"
+    "docs/screenshots/2-revise-by-chat.png",
+    "docs/screenshots/3-deutsch-dark.png",
+    "docs/screenshots/4-check-fix.png"
   ]
 }

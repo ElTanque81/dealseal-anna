@@ -528,6 +528,7 @@ async function draft(e) {
     email: ex.email,
     summary: ex.summary,
     flags: ex.flags,
+    chat: [],
   };
   state.view = "contract";
   renderDoc({ stamp: true });
@@ -550,8 +551,10 @@ function renderDoc(opts = {}) {
   $("#empty").hidden = !!r;
   $("#doc-bar").hidden = !r;
   $("#check").hidden = !r;
+  $("#assistant").hidden = !r;
   for (const v of document.querySelectorAll(".sheet")) v.hidden = !r || v.dataset.view !== state.view;
   if (!r) return;
+  renderChat();
 
   for (const tb of document.querySelectorAll("#tabs .tab")) tb.setAttribute("aria-selected", String(tb.dataset.view === state.view));
   $("#copy-btn").textContent = t(`copy.${state.view}`);
@@ -726,6 +729,331 @@ async function rewriteSection(i, kind, aiIndex, flagEl) {
   }
 }
 
+/* ------------------------------------------------------------ chat edits */
+//
+// The user revises the contract in their own words. Requests go to an Anna
+// agent session (anna.agent.session), which keeps the conversation on the
+// server; if the host has no agent session for this app, the same prompt goes
+// to anna.llm.complete with the recent turns included. Every message carries
+// the latest contract, so hand edits are never lost. The model answers with
+// section changes; the app applies them, renumbers, highlights what changed,
+// reports changed numbers and keeps an undo snapshot of the last change.
+
+const CHAT_SYSTEM = `You are the contract editor inside the DealSeal app. The user is a freelancer revising a contract the app drafted. You are not a lawyer and never claim to be.
+${NO_INVENT}
+You have no tools: do not try to read or write files or browse. Work only from the deal facts and the contract in each message.
+For every request, make the smallest set of section changes that does what the user asked. Keep everything else word for word and keep the contract's language. If a request is unclear, or would make the contract unfair or unlawful, ask a short question or explain instead of changing anything.
+Answer with JSON only, no markdown fences:
+{"reply":"one or two sentences to the user","changes":[{"op":"update","id":"<section id>","heading":"...","body":"..."},{"op":"add","after":"<section id, or start>","heading":"...","body":"..."},{"op":"remove","id":"<section id>"}],"title":"only if the title should change","email":{"subject":"...","body":"..."}}
+Use "changes": [] when the contract should not change. Leave out "title" and "email" unless they should change. Body text: paragraphs separated by a blank line, lists as lines starting with "- ".`;
+
+const chat = { busy: false, cancelled: false, mode: "agent", session: null, runId: null };
+const agentSessions = new Map(); // contract id → AgentSession
+
+class RunError extends Error {
+  constructor(message, extra = {}) { super(message); Object.assign(this, extra); }
+}
+
+function contractSnapshot(r) {
+  return JSON.stringify({
+    title: r.title,
+    sections: r.sections.map((s) => ({ id: s.id, heading: s.heading, body: s.body })),
+    email: r.email,
+  });
+}
+
+function recentTurns(r) {
+  return (r.chat || []).slice(-8, -1).map((m) => `${m.role === "user" ? "User" : "You"}: ${m.text}`).join("\n");
+}
+
+function chatPrompt(r, request, withRecent) {
+  const recent = withRecent ? recentTurns(r) : "";
+  return `DEAL FACTS:
+${dealFacts(r.brief, r.profile)}
+
+CURRENT CONTRACT (the user may have edited it by hand; this is the latest version):
+${contractSnapshot(r)}
+${recent ? `\nEARLIER IN THIS CONVERSATION:\n${recent}\n` : ""}
+Contract language: ${r.brief.docLang}. Write "reply" in ${UI_LANG_NAME[uiLang()]}.
+
+USER REQUEST:
+${request}`;
+}
+
+async function agentSession(r, fresh) {
+  if (!fresh && agentSessions.has(r.id)) return agentSessions.get(r.id);
+  const s = await state.anna.agent.session({ submode: "auto", system_prompt: CHAT_SYSTEM });
+  agentSessions.set(r.id, s);
+  return s;
+}
+
+// Read one run's stream into text; every terminal state is handled.
+async function runAgent(session, content) {
+  let text = "";
+  chat.session = session;
+  for await (const f of session.run({ content })) {
+    if (f.run_id) chat.runId = f.run_id;
+    if (f.event === "sse") {
+      if (f.error) throw new RunError(f.error, { code: f.error_type || "run_error" });
+      const d = f.choices?.[0]?.delta;
+      if (typeof d?.content === "string") text += d.content;
+      else if (d?.task_cancelled) throw new RunError("cancelled", { cancelled: true });
+    } else if (f.event === "error") {
+      throw new RunError(f.message || "run error", { code: f.code || "run_error" });
+    } else if (f.event === "end") {
+      break;
+    }
+  }
+  return text;
+}
+
+async function askChat(r, request) {
+  if (!state.anna) return demoChat(r, request);
+  if (chat.mode === "agent" && state.anna.agent?.session) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let session;
+      try {
+        session = await agentSession(r, attempt > 0);
+      } catch (e) {
+        console.info("[dealseal] no agent session, using llm.complete:", e?.code || e?.message);
+        chat.mode = "llm";
+        break;
+      }
+      try {
+        const text = await runAgent(session, `${chatPrompt(r, request, false)}\n\nAnswer with the JSON described in your instructions.`);
+        if (text.trim()) return text;
+        throw new RunError(t("assistant.empty"), { code: "empty_completion" });
+      } catch (e) {
+        if (e.cancelled || chat.cancelled) throw new RunError("cancelled", { cancelled: true });
+        // An expired session is replaced once; an empty answer is retried once.
+        const code = `${e.code || ""}`;
+        if (attempt === 0 && /session_(revoked|expired|not_found)|expired|not_found|empty_completion/i.test(code)) {
+          if (!/empty_completion/i.test(code)) agentSessions.delete(r.id);
+          continue;
+        }
+        // The agent is not available for this app or user: stop trying it.
+        if (/not_granted|permission|denied|disabled|unavailable|no_agent|queue_timeout/i.test(code)) chat.mode = "llm";
+        console.info("[dealseal] agent session failed, answering with llm.complete:", code || e.message);
+        break;
+      }
+    }
+    if (chat.cancelled) throw new RunError("cancelled", { cancelled: true });
+  }
+  const res = await state.anna.llm.complete({
+    systemPrompt: CHAT_SYSTEM,
+    messages: [{ role: "user", content: { type: "text", text: chatPrompt(r, request, true) } }],
+    maxTokens: 4000,
+    temperature: 0.3,
+  });
+  return completionText(res);
+}
+
+function parseChat(raw) {
+  let data;
+  try {
+    data = extractJson(raw);
+  } catch {
+    // Not JSON: show it as a plain answer and change nothing.
+    return { reply: String(raw || "").trim().slice(0, 800), changes: [] };
+  }
+  return {
+    reply: String(data.reply || "").trim(),
+    changes: (Array.isArray(data.changes) ? data.changes : []).filter((c) => c && ["update", "add", "remove"].includes(c.op)),
+    title: typeof data.title === "string" ? data.title.trim() : "",
+    email: data.email && typeof data.email === "object" ? data.email : null,
+  };
+}
+
+function renumber(sections) {
+  sections.forEach((s, i) => {
+    if (/^\s*\d+\s*[.)]\s*/.test(s.heading)) s.heading = s.heading.replace(/^\s*\d+\s*[.)]\s*/, `${i + 1}. `);
+  });
+}
+
+function applyChanges(r, parsed) {
+  const before = { title: r.title, sections: r.sections.map((s) => ({ ...s })), email: { ...r.email } };
+  const sections = r.sections.map((s) => ({ ...s }));
+  const changed = [], added = [], removed = [];
+  for (const c of parsed.changes) {
+    if (c.op === "update") {
+      const i = sections.findIndex((s) => s.id === c.id);
+      if (i < 0) continue;
+      const body = String(c.body ?? "").trim() || sections[i].body;
+      const heading = String(c.heading ?? "").trim() || sections[i].heading;
+      if (body === sections[i].body && heading === sections[i].heading) continue;
+      sections[i] = { ...sections[i], heading, body };
+      changed.push(sections[i].id);
+    } else if (c.op === "add") {
+      const heading = String(c.heading || "").trim();
+      const body = String(c.body || "").trim();
+      if (!heading || !body) continue;
+      const id = `added-${Date.now().toString(36)}-${added.length}`;
+      let at = c.after === "start" ? 0 : sections.findIndex((s) => s.id === c.after) + 1;
+      if (at <= 0 && c.after !== "start") at = Math.max(0, sections.length - (sections.at(-1)?.id === "general" ? 1 : 0));
+      sections.splice(at, 0, { id, heading, body });
+      added.push(id);
+    } else if (c.op === "remove") {
+      const i = sections.findIndex((s) => s.id === c.id);
+      if (i < 0 || sections.length <= 1) continue;
+      removed.push(sections[i].heading.replace(/^\s*\d+\s*[.)]\s*/, ""));
+      sections.splice(i, 1);
+    }
+  }
+  renumber(sections);
+
+  let titleChanged = false;
+  if (parsed.title && parsed.title !== r.title) { r.title = parsed.title; titleChanged = true; }
+  let emailChanged = false;
+  if (parsed.email && (parsed.email.subject || parsed.email.body)) {
+    const e = { subject: String(parsed.email.subject ?? r.email.subject).trim(), body: String(parsed.email.body ?? r.email.body).trim() };
+    if (e.subject !== r.email.subject || e.body !== r.email.body) { r.email = e; emailChanged = true; }
+  }
+
+  const oldNums = new Set(numbersIn(before.sections.map((s) => s.body).join("\n")));
+  const newNums = new Set(numbersIn(sections.map((s) => s.body).join("\n")));
+  const numbers = { added: [...newNums].filter((n) => !oldNums.has(n)), removed: [...oldNums].filter((n) => !newNums.has(n)) };
+
+  r.sections = sections;
+  const headingOf = (id) => sections.find((s) => s.id === id)?.heading.replace(/^\s*\d+\s*[.)]\s*/, "") || id;
+  return {
+    before,
+    ids: [...changed, ...added],
+    summary: { changed: changed.map(headingOf), added: added.map(headingOf), removed, titleChanged, emailChanged, numbers },
+    any: changed.length + added.length + removed.length > 0 || titleChanged || emailChanged,
+  };
+}
+
+async function sendChat(text) {
+  const r = state.result;
+  const request = String(text || "").trim();
+  if (!r || chat.busy || !request) return;
+  r.chat = r.chat || [];
+  r.chat.push({ role: "user", text: request });
+  chat.busy = true;
+  chat.cancelled = false;
+  chat.runId = null;
+  $("#chat-input").value = "";
+  setChatBusy(true);
+  renderChat();
+
+  let flashIds = [];
+  try {
+    const raw = await askChat(r, request);
+    if (chat.cancelled) throw new RunError("cancelled", { cancelled: true });
+    const parsed = parseChat(raw);
+    const applied = parsed.changes.length || parsed.title || parsed.email ? applyChanges(r, parsed) : null;
+    const msg = { role: "ai", text: parsed.reply || (applied?.any ? "" : t("assistant.none")) };
+    if (applied?.any) {
+      msg.summary = applied.summary;
+      msg.undo = applied.before;
+      flashIds = applied.ids;
+    } else if (parsed.reply && parsed.changes.length) {
+      msg.summary = { none: true };
+    }
+    for (const m of r.chat) delete m.undo; // only the latest change can be undone
+    r.chat.push(msg);
+  } catch (e) {
+    r.chat.push({ role: "ai", error: !e.cancelled, text: e.cancelled ? t("assistant.cancelled") : t("assistant.error", { reason: friendlyError(e) }) });
+  } finally {
+    chat.busy = false;
+    setChatBusy(false);
+    renderDoc();
+    for (const id of flashIds) document.querySelector(`#sections .section[data-id="${CSS.escape(id)}"]`)?.classList.add("flash");
+    if (flashIds.length) document.querySelector(`#sections .section[data-id="${CSS.escape(flashIds[0])}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    save(KEYS.history, state.history);
+  }
+}
+
+function undoChat(msg) {
+  const r = state.result;
+  if (!msg.undo) return;
+  r.title = msg.undo.title;
+  r.sections = msg.undo.sections;
+  r.email = msg.undo.email;
+  delete msg.undo;
+  msg.undone = true;
+  r.chat.push({ role: "ai", text: t("assistant.undone") });
+  renderDoc();
+  save(KEYS.history, state.history);
+}
+
+function stopChat() {
+  if (!chat.busy) return;
+  chat.cancelled = true;
+  if (chat.session && chat.runId) chat.session.cancel(chat.runId).catch(() => {});
+}
+
+function setChatBusy(busy) {
+  $("#chat-send").hidden = busy;
+  $("#chat-stop").hidden = !busy;
+}
+
+function renderChat() {
+  const r = state.result;
+  const log = $("#chat-log");
+  log.innerHTML = "";
+  const msgs = r?.chat || [];
+  $("#suggestions").hidden = msgs.length > 0;
+  for (const m of msgs) {
+    const li = document.createElement("li");
+    li.className = `msg ${m.role}${m.error ? " error" : ""}`;
+    const who = document.createElement("span");
+    who.className = "sr-only";
+    who.textContent = `${t(m.role === "user" ? "assistant.you" : "assistant.ai")}: `;
+    li.append(who);
+    if (m.text) {
+      const p = document.createElement("p");
+      p.textContent = m.text;
+      li.append(p);
+    }
+    const s = m.summary;
+    if (s && !s.none) {
+      const lines = [];
+      if (s.changed?.length) lines.push(t("assistant.changed", { list: s.changed.join(", ") }));
+      if (s.added?.length) lines.push(t("assistant.added", { list: s.added.join(", ") }));
+      if (s.removed?.length) lines.push(t("assistant.removed", { list: s.removed.join(", ") }));
+      if (s.titleChanged) lines.push(t("assistant.titleChanged"));
+      if (s.emailChanged) lines.push(t("assistant.emailChanged"));
+      const ul = document.createElement("ul");
+      ul.className = "msg-changes";
+      for (const line of lines) {
+        const item = document.createElement("li");
+        item.textContent = line;
+        ul.append(item);
+      }
+      if (s.numbers && (s.numbers.added.length || s.numbers.removed.length)) {
+        const item = document.createElement("li");
+        item.className = "numbers";
+        item.textContent = t("assistant.numbers", { added: s.numbers.added.join(", ") || "–", removed: s.numbers.removed.join(", ") || "–" });
+        ul.append(item);
+      }
+      li.append(ul);
+      if (m.undo) li.append(miniButton(t("assistant.undo"), () => undoChat(m)));
+    }
+    log.append(li);
+  }
+  if (chat.busy) {
+    const li = document.createElement("li");
+    li.className = "msg ai working";
+    li.textContent = t("assistant.working");
+    log.append(li);
+  }
+  log.scrollTop = log.scrollHeight;
+}
+
+/* Preview mode: a tiny stand-in editor so the chat can be tried outside Anna. */
+function demoChat(r, request) {
+  const pay = r.sections.find((s) => s.id === "payment");
+  const out = { reply: "Done. I updated the contract.", changes: [] };
+  if (/\d+\s*%/.test(request) && pay) {
+    const pct = request.match(/(\d+)\s*%/)[1];
+    out.changes.push({ op: "update", id: "payment", heading: pay.heading, body: pay.body.replace(/\d+\s*%/, `${pct}%`) });
+  } else {
+    out.changes.push({ op: "add", after: r.sections.at(-2)?.id || "start", heading: "99. Additional terms", body: `[${request}]` });
+  }
+  return new Promise((res) => setTimeout(() => res(JSON.stringify(out)), 500));
+}
+
 /* ------------------------------------------------------------------ copy */
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -843,6 +1171,12 @@ async function boot() {
   $("#profile-form").addEventListener("submit", (e) => { e.preventDefault(); saveProfile(); });
   $("#p-cancel").addEventListener("click", () => $("#profile-dialog").close());
   $("#copy-btn").addEventListener("click", copyCurrent);
+  $("#chat-form").addEventListener("submit", (e) => { e.preventDefault(); sendChat($("#chat-input").value); });
+  $("#chat-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendChat($("#chat-input").value); }
+  });
+  $("#chat-stop").addEventListener("click", stopChat);
+  for (const b of document.querySelectorAll("#suggestions .sugg")) b.addEventListener("click", () => sendChat(b.textContent));
   for (const tb of document.querySelectorAll("#tabs .tab")) {
     tb.addEventListener("click", () => { state.view = tb.dataset.view; renderDoc(); });
   }

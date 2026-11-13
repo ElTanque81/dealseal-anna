@@ -1,13 +1,15 @@
 {
   "name": "dealseal",
   "private": true,
-  "version": "0.1.0",
-  "description": "DealSeal — an Anna App that drafts freelance contracts, client emails and a risk check.",
+  "version": "0.2.0",
+  "description": "DealSeal \u2014 an Anna App that drafts freelance contracts, client emails and a risk check.",
   "scripts": {
     "dev": "anna-app dev",
     "dev:mock": "anna-app dev --mock-llm fixtures/happy-path.jsonl",
     "validate": "anna-app validate --strict",
     "publish": "anna-app publish"
   },
-  "devDependencies": { "@anna-ai/cli": "^0.1.59" }
+  "devDependencies": {
+    "@anna-ai/cli": "^0.1.59"
+  }
 }

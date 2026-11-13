@@ -182,6 +182,26 @@
 
             <p class="disclaimer" data-i18n="disclaimer">DealSeal drafts contracts, it is not a lawyer.</p>
           </div>
+
+          <section class="assistant" id="assistant" hidden data-i18n-aria="assistant.title" aria-label="Ask DealSeal">
+            <div class="assistant-head">
+              <h2 data-i18n="assistant.title">Ask DealSeal</h2>
+              <p class="assistant-hint" data-i18n="assistant.hint">Ask for any change in your own words.</p>
+            </div>
+            <ol class="chat-log" id="chat-log" aria-live="polite"></ol>
+            <div class="suggestions" id="suggestions">
+              <button type="button" class="sugg" data-i18n="sugg.1">Add a clause about travel costs</button>
+              <button type="button" class="sugg" data-i18n="sugg.2">Make the upfront payment 50%</button>
+              <button type="button" class="sugg" data-i18n="sugg.3">Add 30 days of free bug fixes</button>
+              <button type="button" class="sugg" data-i18n="sugg.4">Make the whole contract shorter</button>
+            </div>
+            <form class="chat-form" id="chat-form" autocomplete="off">
+              <label class="sr-only" for="chat-input" data-i18n="assistant.title">Ask DealSeal</label>
+              <textarea id="chat-input" rows="2" maxlength="1500" data-i18n-ph="assistant.ph"></textarea>
+              <button type="submit" class="send" id="chat-send" data-i18n="assistant.send">Send</button>
+              <button type="button" class="send ghost" id="chat-stop" data-i18n="assistant.stop" hidden>Stop</button>
+            </form>
+          </section>
         </div>
 
         <section class="history" data-i18n-aria="history.title" aria-label="Recent">

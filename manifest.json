@@ -1,37 +1,62 @@
 {
-  "schema": 3,
+  "schema": 4,
   "required_executas": [],
   "optional_executas": [],
-  "system_prompt_addendum": "The user has the DealSeal app open. It drafts freelance contracts, a cover email to the client and a risk check. If the user asks for a contract, suggest the app window, or help directly in plain language without inventing names, amounts or dates. Remind them that this is not legal advice.",
-  "tags": ["contracts", "freelance", "legal", "proposals", "invoicing", "productivity"],
+  "system_prompt_addendum": "The user has the DealSeal app open. It drafts freelance contracts, a cover email to the client and a risk check, and lets the user revise the contract by chatting with the AI inside the app. If the user asks for a contract or a change, suggest the app window, or help directly in plain language without inventing names, amounts or dates. Remind them that this is not legal advice.",
+  "tags": [
+    "contracts",
+    "freelance",
+    "legal",
+    "proposals",
+    "invoicing",
+    "productivity"
+  ],
   "ui": {
-    "bundle": { "format": "static-spa", "entry": "index.html", "external_origins": [] },
+    "bundle": {
+      "format": "static-spa",
+      "entry": "index.html",
+      "external_origins": []
+    },
     "views": [
       {
         "name": "main",
         "title": "DealSeal",
         "default": true,
         "entry": "index.html",
-        "min_size": { "w": 380, "h": 560 },
-        "default_size": { "w": 1040, "h": 780 },
+        "min_size": {
+          "w": 380,
+          "h": 560
+        },
+        "default_size": {
+          "w": 1040,
+          "h": 780
+        },
         "resizable": true,
         "movable": true,
         "single_instance": true,
         "icon": "icon.svg"
       }
     ],
-    "host_api": {
-      "llm": ["complete"],
-      "storage": ["get", "set"],
-      "chat": ["write_message"],
-      "window": ["set_title"]
-    },
+    "host_api": {},
     "csp_overrides": {
-      "img-src": ["'self'", "data:"],
-      "style-src": ["'self'"],
-      "script-src": ["'self'"]
+      "img-src": [
+        "'self'",
+        "data:"
+      ],
+      "style-src": [
+        "'self'"
+      ],
+      "script-src": [
+        "'self'"
+      ]
     },
     "state_merge": "last_writer_wins"
   },
-  "dev": { "fixtures": ["fixtures/*.jsonl"], "seed_storage": {}, "user_id": 1 }
+  "dev": {
+    "fixtures": [
+      "fixtures/*.jsonl"
+    ],
+    "seed_storage": {},
+    "user_id": 1
+  }
 }
